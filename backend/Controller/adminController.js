@@ -5,7 +5,41 @@ const jwt = require('jsonwebtoken'); // For JWT token generation
 const AdminController = {
     // Create a new admin
     createAdmin: async (req, res) => {
-        res.status(200).json({ message: 'Admin route is working!' });
+        try {
+            const { name, email, password } = req.body;
+    
+            // Validate required fields
+            if (!name || !email || !password) {
+                return res.status(400).json({ message: 'Name, email, and password are required' });
+            }
+    
+            // Check if the admin already exists
+            const existingAdmin = await Admin.findOne({ Email: email });
+            if (existingAdmin) {
+                return res.status(400).json({ message: 'Admin already exists' });
+            }
+    
+            // Hash the password
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(password, salt);
+    
+            // Create a new admin
+            const newAdmin = new Admin({
+                Name: name,
+                Email: email,
+                Password: hashedPassword,
+            });
+    
+            // Save the admin to the database
+            await newAdmin.save();
+    
+            res.status(201).json({
+                message: 'Admin created successfully',
+                admin: { _id: newAdmin._id, name: newAdmin.Name, email: newAdmin.Email },
+            });
+        } catch (error) {
+            res.status(500).json({ message: 'Server error', error: error.message });
+        }
     },
 
     // Login admin
@@ -113,13 +147,16 @@ const AdminController = {
     deleteAdmin: async (req, res) => {
         try {
             const { id } = req.params;
-
+    
+            // Find the admin by ID
             const admin = await Admin.findById(id);
             if (!admin) {
                 return res.status(404).json({ message: 'Admin not found' });
             }
-
-            await admin.remove();
+    
+            // Delete the admin using deleteOne
+            await Admin.deleteOne({ _id: id });
+    
             res.status(200).json({ message: 'Admin deleted successfully' });
         } catch (error) {
             res.status(500).json({ message: 'Server error', error: error.message });
