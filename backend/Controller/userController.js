@@ -20,15 +20,12 @@ const UserController = {
                 return res.status(400).json({ message: 'User already exists' });
             }
     
-            // Find the last user and increment the Id
-            const lastUser = await User.findOne().sort({ Id: -1 });
-            const newId = lastUser ? lastUser.Id + 1 : 1;
+           
     
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(password, salt);
     
             const newUser = new User({
-                Id: newId,
                 Name: name, // Match the schema field name
                 Email: email, // Match the schema field name
                 Password: hashedPassword, // Match the schema field name

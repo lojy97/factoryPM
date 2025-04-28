@@ -3,7 +3,6 @@ const { Schema } = mongoose;
 const productSchema = require('./productsModel').Schema; 
 
 const shopSchema = new Schema({
-    ShopID: { type: Number, required: true, unique: true },
     name: { type: String, required: true },
     logo: { type: String, required: true }, 
     products: [productSchema],
