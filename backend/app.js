@@ -13,7 +13,7 @@ console.log('User routes loaded');
 app.use('/api/users', require('./Routes/userRoutes'));
 console.log('Admin routes loaded');
 app.use('/api/admins', require('./Routes/adminRoutes')); // Updated route to '/api/admins'
-
+app.use('/api/orders', orderRoutes);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
