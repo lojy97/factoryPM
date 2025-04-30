@@ -9,6 +9,9 @@ connectDB(); // connect to MongoDB Atlas
 app.use(express.json());
 
 //ROUTES
+// console.log('Auth routes loaded');
+app.use('/api/auth', require('./Routes/authentication'));
+
 // console.log('User routes loaded');
 app.use('/api/users', require('./Routes/userRoutes'));
 
