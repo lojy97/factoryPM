@@ -1,47 +1,46 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
-const ItemSchema = new Schema(
-  {
-    productId: {
-      type: String,
-      required: true,
-    },
-    name: {
-      type: String,
-      required: true,
-      default: "Product",
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: [1, "Quantity must be at least 1"],
-    },
-    price: {
-      type: Number,
-      required: true,
-    },
-    total: {
-      type: Number,
-      required: true,
-    },
-  },
-  { timestamps: true }
-);
-
 const CartSchema = new Schema(
   {
-    sessionId: {
-      type: String,
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
       unique: true,
     },
-    items: [ItemSchema],
+    items: [
+      {
+        product: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        name: {
+          type: String,
+          required: true,
+          default: "Product",
+        },
+        quantity: {
+          type: Number,
+          required: true,
+          min: [1, "Quantity must be at least 1"],
+        },
+        price: {
+          type: Number,
+          required: true,
+        },
+        total: {
+          type: Number,
+          required: true,
+        },
+      },
+    ],
     subTotal: {
       type: Number,
       default: 0,
     },
-    lastActive: {
+    updatedAt: {
       type: Date,
       default: Date.now,
     },
@@ -49,9 +48,9 @@ const CartSchema = new Schema(
   { timestamps: true }
 );
 
-// Update lastActive timestamp on cart operations
+// Update updatedAt timestamp on cart operations
 CartSchema.pre("save", function (next) {
-  this.lastActive = Date.now();
+  this.updatedAt = Date.now();
   next();
 });
 

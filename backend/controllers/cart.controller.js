@@ -1,14 +1,18 @@
 const Cart = require("../models/cart");
+const Product = require("../models/productsModel"); // Import the Product model
 
 exports.getCart = async (req, res) => {
   try {
-    // Find cart by session ID
-    let cart = await Cart.findOne({ sessionId: req.session.id });
+    // Find cart by user ID
+    let cart = await Cart.findOne({ user: req.user.id }).populate(
+      "items.product",
+      "ProductName Price Stock"
+    );
 
     if (!cart) {
-      // If no cart exists for this session, create an empty one
+      // If no cart exists for this user, create an empty one
       cart = new Cart({
-        sessionId: req.session.id,
+        user: req.user.id,
         items: [],
         subTotal: 0,
       });
@@ -23,23 +27,29 @@ exports.getCart = async (req, res) => {
 };
 
 exports.addItemToCart = async (req, res) => {
-  const { productId, quantity, price, name } = req.body;
+  const { productId } = req.body;
+  // Default quantity to 1 if not provided
+  const quantity = req.body.quantity || 1;
 
   // Validate inputs
-  if (!productId || !quantity || !price) {
-    return res
-      .status(400)
-      .json({ msg: "Missing productId, quantity, or price" });
+  if (!productId) {
+    return res.status(400).json({ msg: "Missing productId" });
   }
 
   try {
-    // Find cart by session ID
-    let cart = await Cart.findOne({ sessionId: req.session.id });
+    // Find product to get price and name
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ msg: "Product not found" });
+    }
+
+    // Find cart by user ID
+    let cart = await Cart.findOne({ user: req.user.id });
 
     if (!cart) {
       // Create new cart if none exists
       cart = new Cart({
-        sessionId: req.session.id,
+        user: req.user.id,
         items: [],
         subTotal: 0,
       });
@@ -47,7 +57,7 @@ exports.addItemToCart = async (req, res) => {
 
     // Check if product already exists in cart
     const itemIndex = cart.items.findIndex(
-      (item) => item.productId === productId
+      (item) => item.product.toString() === productId
     );
 
     if (itemIndex > -1) {
@@ -58,11 +68,11 @@ exports.addItemToCart = async (req, res) => {
     } else {
       // Add new item
       cart.items.push({
-        productId,
-        name: name || "Product", // Store product name for better UX
+        product: productId,
+        name: product.ProductName || "Product",
         quantity,
-        price,
-        total: quantity * price,
+        price: product.Price,
+        total: quantity * product.Price,
       });
     }
 
@@ -81,6 +91,7 @@ exports.addItemToCart = async (req, res) => {
   }
 };
 
+// Other functions remain the same...
 exports.updateCartItem = async (req, res) => {
   const { productId } = req.params;
   const { quantity } = req.body;
@@ -90,8 +101,8 @@ exports.updateCartItem = async (req, res) => {
   }
 
   try {
-    // Find cart by session ID
-    let cart = await Cart.findOne({ sessionId: req.session.id });
+    // Find cart by user ID
+    let cart = await Cart.findOne({ user: req.user.id });
 
     if (!cart) {
       return res.status(404).json({ type: "Not Found", msg: "Cart not found" });
@@ -99,7 +110,7 @@ exports.updateCartItem = async (req, res) => {
 
     // Find the item in the cart
     const itemIndex = cart.items.findIndex(
-      (item) => item.productId === productId
+      (item) => item.product.toString() === productId
     );
 
     if (itemIndex === -1) {
@@ -133,8 +144,8 @@ exports.removeItemFromCart = async (req, res) => {
   const { productId } = req.params;
 
   try {
-    // Find cart by session ID
-    let cart = await Cart.findOne({ sessionId: req.session.id });
+    // Find cart by user ID
+    let cart = await Cart.findOne({ user: req.user.id });
 
     if (!cart) {
       return res.status(404).json({ type: "Not Found", msg: "Cart not found" });
@@ -142,7 +153,7 @@ exports.removeItemFromCart = async (req, res) => {
 
     // Find item in cart
     const itemIndex = cart.items.findIndex(
-      (item) => item.productId === productId
+      (item) => item.product.toString() === productId
     );
 
     if (itemIndex === -1) {
@@ -173,8 +184,8 @@ exports.removeItemFromCart = async (req, res) => {
 
 exports.emptyCart = async (req, res) => {
   try {
-    // Find cart by session ID
-    let cart = await Cart.findOne({ sessionId: req.session.id });
+    // Find cart by user ID
+    let cart = await Cart.findOne({ user: req.user.id });
 
     if (!cart) {
       return res.status(404).json({ type: "Not Found", msg: "Cart not found" });
@@ -200,8 +211,8 @@ exports.emptyCart = async (req, res) => {
 
 exports.checkout = async (req, res) => {
   try {
-    // Find cart by session ID
-    let cart = await Cart.findOne({ sessionId: req.session.id });
+    // Find cart by user ID
+    let cart = await Cart.findOne({ user: req.user.id });
 
     if (!cart) {
       return res.status(404).json({ type: "Not Found", msg: "Cart not found" });
@@ -211,18 +222,15 @@ exports.checkout = async (req, res) => {
       return res.status(400).json({ type: "Error", msg: "Cart is empty" });
     }
 
-    // Fetch the Product model - assuming it's defined elsewhere in your application
-    const Product = require("../models/product");
-
     // Check inventory and update product stock
     const stockUpdates = [];
     for (const item of cart.items) {
-      const product = await Product.findById(item.productId);
+      const product = await Product.findById(item.product);
 
       if (!product) {
         return res.status(404).json({
           type: "Error",
-          msg: `Product not found: ${item.productId}`,
+          msg: `Product not found: ${item.product}`,
         });
       }
 
@@ -240,10 +248,6 @@ exports.checkout = async (req, res) => {
 
     // Wait for all stock updates to complete
     await Promise.all(stockUpdates);
-
-    // Here you would typically:
-    // 1. Process payment
-    // 2. Create order in database
 
     // Return success response
     res.status(200).json({
